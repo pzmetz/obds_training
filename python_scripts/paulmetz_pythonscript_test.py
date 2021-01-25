@@ -17,7 +17,17 @@
 #    print(number)
     
 # user should enter a number, and this will be turned into an integer
+y = 0
 user_number = int(input('Please, enter an integer:'))
 #print the numbers between 1 and that of the user
-for number in range (2, user_number) or range (user_number +1, 1):
-    print(number)
+for number in range (0, user_number):
+    y = y + number
+    x = user_number -1
+    if number == x:
+        print("SUM of first", user_number, "number is: ", y)
+    
+    
+#    sum = 0.
+#for num in range(0, n+1, 1):
+#sum = sum+num.
+#print("SUM of first ", n, "numbers is: ", sum )
