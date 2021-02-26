@@ -1,0 +1,75 @@
+---
+title: "ggplot2"
+author: "PaulMetz"
+date: "24-2-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load ggplot2 package
+
+```{r}
+library(ggplot2)
+```
+
+make diamonds dataset plot, using carat and price data
+
+```{r}
+ggplot(diamonds, aes(x = carat, y = price))
+```
+specify you want points to be plotted
+
+```{r}
+ggplot(diamonds, aes(x = carat, y = price)) +
+    geom_point()
+```
+
+```{r}
+ggplot(diamonds, aes(x = carat, y = price, col=cut)) +
+    geom_point()
+```
+
+```{r}
+ggplot(diamonds, aes(x = carat, y = price)) +
+    geom_point(aes(col=cut)) +
+    geom_smooth()
+```
+
+
+```{r}
+ggplot(diamonds, aes(x = carat, y = price)) +
+    geom_point(aes(col=cut)) +
+    geom_smooth() +
+    theme(
+        axis.ticks = element_line(size = 1)
+    )
+```
+
+library(patchwork)
+
+```{r}
+ggplot(diamonds, aes(x = carat, y = price)) +
+    geom_point(aes(col=cut)) +
+    geom_smooth() +
+    facet_wrap(~cut, nrow = 2)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,432 @@
+---
+title: "Tidyverse_tutorial"
+author: "PaulMetz"
+date: "25-2-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load in packages
+
+```{r}
+library(tidyverse)
+```
+
+Load in data files
+counts table: genes on rows and samples on columns
+reads table: metadata per sample, with read counts per sample.
+
+```{r}
+counts_table <- read_tsv("data/obds_countstable.tsv.gz")
+metadata_table <- read_tsv("data/obds_sampletable.tsv")
+```
+
+tidy up Counts_table
+
+```{r}
+counts_table_tidy <- counts_table %>% 
+    pivot_longer(-Geneid, names_to = "samples", values_to = "count")
+
+View(counts_table_tidy)
+```
+
+
+join with gene info to get mgi_symbol, use biomaRt package
+
+```{r}
+library(biomaRt)
+
+#download entire database
+ensembl <- useMart("ensembl")
+
+#look at databases to see which one to use
+listDatasets(ensembl)
+
+# this database we will use:mmusculus_gene_ensembl	
+
+#load specific database because now we know which one we want: mouse 
+ensembl <-  useMart("ensembl",dataset = "mmusculus_gene_ensembl")
+
+#list ensemble attributes within mouse database
+listAttributes(ensembl)
+
+#not sure what this does. 
+listFilters(ensembl)
+
+#match ensemble_gene_id (from our table) to mgi_sumbol from the database
+gene_names <- getBM(c("ensembl_gene_id",  "mgi_symbol"), filters = "ensembl_gene_id", values = counts_table$Geneid, mart = ensembl)
+View(gene_names)
+```
+
+join the counts_table_tidy with gene_names
+
+```{r}
+
+#check if there are duplicates in gene_names table. No because theyre both same length. So we can join them. 
+length(unique(gene_names$ensembl_gene_id))
+length(gene_names$ensembl_gene_id)
+
+
+counts_table_tidy <- counts_table_tidy %>% 
+    left_join(gene_names, by = c("Geneid" = "ensembl_gene_id"))
+View(counts_table_tidy)
+
+# this will give the number of cases in 
+sum(is.na(counts_table_tidy$mgi_symbol))/12
+
+  
+```
+Tidy metadata file
+- One variable per column
+- Don't need species and library_layout columns
+
+```{r}
+# metadata_table <- metadata_table %>%
+#   separate(sample_title, c("gene_name", "gene_condition", "cell_type", "replicate_number"), sep = "_") 
+# 
+# metadata_table <- metadata_table %>%
+#   unite(col = genotype, gene_name, gene_condition, sep = "_")
+# 
+# metadata_table <- metadata_table %>%
+#   dplyr::select(-species, -library_layout)
+# View(metadata_table)
+```
+
+
+Now all in one command
+
+```{r}
+metadata_table <- metadata_table %>%
+  separate(sample_title, c("gene_name", "gene_condition", "cell_type", "replicate_number"), sep = "_") %>% 
+  unite(col = genotype, gene_name, gene_condition, sep = "_") %>%
+  dplyr::select(-species, -library_layout)
+View(metadata_table)
+```
+
+
+Add metadata to table with counts and gene info
+
+```{r}
+View(counts_table_tidy)
+View(metadata_table)
+counts_table_tidy <- counts_table_tidy %>% left_join(metadata_table, by = c("samples" = "Sample_accession"))
+View(counts_table_tidy)
+```
+
+Calculate counts per million (CPM) - use group_by() and mutate()
+
+```{r}
+counts_table_tidy <- counts_table_tidy %>%
+  mutate(CPM = count*1000000/read_count)
+```
+
+Also calculate log2(CPM + 1)
+
+```{r}
+counts_table_tidy <- counts_table_tidy %>%
+  mutate(log_transformed = log2(CPM + 1))
+```
+
+we're removing the last few columns, so we can add them ourselves later on (they were made by accident by tutor)
+
+```{r}
+counts_table_tidy <- counts_table_tidy %>%
+  dplyr::select(Geneid:replicate_number)
+
+```
+
+Calculate counts per million (CPM) - use group_by() and mutate()
+
+
+```{r}
+counts_table_tidy <- counts_table_tidy %>%
+  group_by(samples) %>% 
+  mutate(total_counts = sum(count))
+
+#check if there are 12 unique counts  
+unique(counts_table_tidy$total_counts)
+
+```
+Calculate counts per million (CPM) - use group_by() and mutate()
+
+```{r}
+counts_table_tidy <- counts_table_tidy %>%
+  mutate(CPM = count*1000000/total_counts)
+View(counts_table_tidy)
+```
+
+Also calculate log2(CPM + 1)
+
+```{r}
+counts_table_tidy <- counts_table_tidy %>%
+  mutate(log_transformed = log2(CPM + 1))
+# you can also combine mutate mutate(CPM = count*1000000/total_counts, log_transformed = log2(CPM + 1)) like this, combined. 
+View(counts_table_tidy)
+```
+
+Plot with ggplot using geom_col()
+
+
+
+```{r}
+plotting_table <- counts_table_tidy %>%
+  group_by(samples) %>%
+  summarise(total_counts = sum(count))
+plotting_table
+
+plot1 <- ggplot(plotting_table, aes(x = samples, y = total_counts, col = samples)) +
+                geom_col() +
+    theme(axis.title = element_text(size = 8, face = "bold"), axis.text.x = element_text(size = 8, angle = 30, hjust = 1, color = "gold"))
+plot1
+```
+
+Filter out genes that have 0 counts
+```{r}
+temp <- counts_table_tidy %>%
+  group_by(Geneid) %>%
+  summarise(total_counts_per_gene = sum(count)) %>%
+  filter(total_counts_per_gene == 0) %>% 
+  tally()
+
+View(temp)
+```
+
+Draw a density plot of log2(CPM + 1) for all genes
+Use geom_density() and colour by sample
+Are the samples similar?
+
+```{r}
+View(counts_table_tidy)
+
+plot2 <- ggplot(counts_table_tidy, aes(x = log_transformed, col = samples)) +
+    geom_density() +
+    theme(axis.title = element_text(size = 8, face = "bold"), axis.text.x = element_text(size = 8, angle = 30, hjust = 1, color = "gold"))
+plot2
+```
+
+Filter out genes that have low expression in 3 or fewer samples
+For low expression use CPM < 0.5
+What proportion of genes are lowly expressed?
+
+```{r}
+genes_to_keep <- counts_table_tidy %>%
+  group_by(Geneid) %>%
+  filter(CPM >= 0.5) %>% 
+  tally() %>%
+  filter(n > 3) %>%
+  pull(Geneid)
+
+head(genes_to_keep)
+View(genes_to_keep)
+```
+
+filter out the genes
+
+```{r}
+filtered_counts_table <- counts_table_tidy %>%
+  filter(Geneid %in% genes_to_keep)
+nrow(filtered_counts_table)
+nrow(counts_table_tidy)
+```
+you can do the above all in one
+
+```{r}
+# filtered_counts_table <- counts_table_tidy %>%
+#   group_by(Geneid) %>%
+#   filter(sum(CPM >= 0.5) > 3)
+
+```
+
+plotting time
+
+
+```{r}
+plot3 <- ggplot(filtered_counts_table, aes(x = log_transformed, col = samples)) +
+    geom_density() +
+    theme(axis.title = element_text(size = 8, face = "bold"), axis.text.x = element_text(size = 8, angle = 30, hjust = 1, color = "gold"))
+plot3
+```
+
+Plot CD4 and CD8 expression for all samples - does it make sense?
+Colour by replicate and facet by genotype against cell type
+
+select for Cd4 and cd8 gene expression samples
+
+```{r}
+cd4_expression_samples_table <- counts_table_tidy %>%
+  group_by(cell_type) %>%
+  filter(mgi_symbol == "Cd4")
+
+cd8_expression_samples_table <- counts_table_tidy %>%
+  group_by(cell_type) %>%
+  filter(mgi_symbol == "Cd8a")
+
+#below if you want to select Cd4 and Cd8 together:
+# cd4_cd8_expression_samples_table <- counts_table_tidy %>%
+#   filter(mgi_symbol == "Cd4" | mgi_symbol == "Cd8a") 
+
+View(cd4_expression_samples_table)
+# temp_table <- <- counts_table_tidy %>%
+#   filter(Geneid %in% genes_to_keep)
+```
+
+plot cd4 and cd8 table
+
+
+```{r}
+plot4 <- ggplot(cd4_expression_samples_table, aes(x = cell_type, y = count, col = replicate_number)) +
+    geom_col() +
+    theme(axis.title = element_text(size = 8, face = "bold"), axis.text.x = element_text(size = 8, angle = 30, hjust = 1, color = "gold"))
+plot4
+
+plot5 <- ggplot(cd8_expression_samples_table, aes(x = cell_type, y = count, ymin = 0, ymax = 10000, col = replicate_number)) +
+    geom_col() +
+    theme(axis.title = element_text(size = 8, face = "bold"), axis.text.x = element_text(size = 8, angle = 30, hjust = 1, color = "gold"))
+plot5
+```
+
+Facet by genotype against cell type
+
+
+
+```{r}
+plot6 <- ggplot(cd4_expression_samples_table, aes(x = cell_type, y = count, col = replicate_number)) +
+    geom_col() +
+    theme(axis.title = element_text(size = 8, face = "bold"), axis.text.x = element_text(size = 8, angle = 30, hjust = 1, color = "gold")) +
+  facet_wrap(~genotype, ncol = 1, scales = "free_y")
+plot6
+```
+
+Generate the same plot for Egr2 and Egr3 for all samples - does it make sense?
+
+select for Egr2 and Egr3 gene expression samples
+
+```{r}
+Egr2_expression_samples_table <- counts_table_tidy %>%
+  group_by(cell_type) %>%
+  filter(mgi_symbol == "Egr2")
+
+Egr3_expression_samples_table <- counts_table_tidy %>%
+  group_by(cell_type) %>%
+  filter(mgi_symbol == "Egr3")
+```
+
+plot different tables 
+For Egr3 the Knockin has lower expression than the knockout, so it doesn't make sense. 
+
+```{r}
+plot7 <- ggplot(Egr2_expression_samples_table, aes(x = genotype, y = count, col = replicate_number)) +
+    geom_col() +
+    theme(axis.title = element_text(size = 8, face = "bold"), axis.text.x = element_text(size = 8, angle = 30, hjust = 1, color = "gold"))
+plot7
+
+plot8 <- ggplot(Egr3_expression_samples_table, aes(x = genotype, y = count, ymin = 0, ymax = 10000, col = replicate_number)) +
+    geom_col() +
+    theme(axis.title = element_text(size = 8, face = "bold"), axis.text.x = element_text(size = 8, angle = 30, hjust = 1, color = "gold"))
+plot8
+```
+
+load pheatmap package
+
+```{r}
+library(pheatmap)
+```
+
+select 20 biologically relevant genes 
+
+
+```{r}
+
+View(counts_table_tidy)
+
+top_20_genes <- counts_table_tidy %>%
+  group_by(genotype) %>%
+  slice_tail(n = 120)
+#above we say 10, because 10 for each genotype
+
+length(unique(top_20_genes$mgi_symbol))
+
+View(top_20_genes)
+
+```
+
+Subset information from 20_genes table for heatmap plotting
+
+```{r}
+temp <- top_20_genes %>%
+  dplyr::select(count, mgi_symbol, genotype, cell_type, replicate_number) %>%
+  unite(col = cell_geno_type, genotype, cell_type, replicate_number, sep = "_", remove = TRUE) %>%
+  pivot_wider(names_from = cell_geno_type, values_from = count)
+
+temp <- as.matrix(temp)
+rownames(temp) <- temp[,1]
+temp <- as.data.frame(temp)
+temp1 <- as.data.frame(temp)
+
+temp$mgi_symbol <- NULL
+temp2 <-  as.data.frame(sapply(temp, as.numeric))
+rownames(temp2) <- temp1[,1]
+
+temp2[,order(colnames(temp2))]
+View(temp2)
+
+pheatmap(temp2, show_rownames = TRUE, show_colnames = TRUE)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

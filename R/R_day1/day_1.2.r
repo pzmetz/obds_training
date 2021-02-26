@@ -33,8 +33,7 @@ max_chrom
 
 #7. Subset the data frame to contain only regions with a length from
 #100,001-200,000 bp - assign to a new variable. Write your subset
-#data frame to a tab separated file(include 
-                                   comuln names but not row names)
+#data frame to a tab separated file(include comuln names but not row names)
 
 newdata <- subset(ordered_table_1, ordered_table_1$interval >= 100001 & ordered_table_1$interval <= 200000)
 newdata
@@ -109,11 +108,30 @@ for (number in numeric_vector){
   }
 }
 
-2. Write a function that returns the colour name and the number of
-vowels it contains, but only for elements in colours_vector with fewer
-than six characters
+#2. Write a function that returns the colour name and the number of
+#vowels it contains, but only for elements in colours_vector with fewer
+#than six characters
 
+colours_vector <- c("red", "orange", "purple", "yellow", "pink", "blue", "red", "Bordeaux")
 
+count_vowels_in_word <- function(colour){
+  colour_split <- strsplit(colour, "")[[1]]
+  counter <- 0
+  for (letter in colour_split){
+    if ((letter == "a") | (letter == "e") | (letter == "o") | (letter == "i") | (letter == "u")){
+      counter <- counter + 1
+    }
+  }
+  return(counter)
+}
 
-
-
+color_selection <- function(colours_vector){
+  for (colour in colours_vector){
+    if (nchar(colour) < 6){
+      print(colour)
+      print(count_vowels_in_word(colour))
+    }
+  }
+}
+  
+color_selection(colours_vector)

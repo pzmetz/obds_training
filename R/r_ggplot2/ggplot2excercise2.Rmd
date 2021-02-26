@@ -1,0 +1,185 @@
+---
+title: "Chick_ggplot"
+author: "PaulMetz"
+date: "24-2-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Plot a histogram of chick weight.
+
+```{r}
+
+ggplot(ChickWeight, aes(x = weight)) +
+    geom_histogram()
+```
+
+```{r}
+
+ggplot(ChickWeight, aes(x = weight)) +
+    geom_histogram(fill = "grey", colour = "black")
+```
+
+
+
+```{r}
+
+ggplot(ChickWeight, aes(x = weight)) +
+    geom_histogram(fill = "grey", color = "black", binwidth = 4)
+```
+
+
+```{r}
+
+ggplot(ChickWeight, aes(x = weight)) +
+    geom_histogram(fill = "grey", color = "black", binwidth = 4) +
+    labs(x = "chick weight", y = "Number of chicks", title = "Histogram of chick weights", subtitle = "chickweight dataset")
+```
+
+```{r}
+
+ggplot(ChickWeight, aes(x = weight)) +
+    geom_histogram(fill = "grey", color = "black", binwidth = 4) +
+    labs(x = "chick weight", y = "Number of chicks", title = "Histogram of chick weights", subtitle = "chickweight dataset") +
+    theme(axis.title = element_text(size = 8, face = "bold"), axis.text.x = element_text(size = 14, angle = 30, hjust = 1, color = "gold"))
+```
+
+
+```{r}
+
+ggplot(ChickWeight, aes(x = weight)) +
+    geom_histogram(fill = "grey", color = "black", binwidth = 4) +
+    labs(x = "chick weight", y = "Number of chicks", title = "Histogram of chick weights", subtitle = "chickweight dataset") +
+    theme(axis.title = element_text(size = 8, face = "bold"), axis.text.x = element_text(size = 14, angle = 30, hjust = 1, color = "gold")) +
+    ylim(0, 100)
+```
+
+```{r}
+
+ggplot(ChickWeight, aes(x = weight,fill = Diet)) +
+    geom_histogram(color = "black", binwidth = 4) +
+    labs(x = "chick weight", y = "Number of chicks", title = "Histogram of chick weights", subtitle = "chickweight dataset") +
+    theme(axis.title = element_text(size = 8, face = "bold"), axis.text.x = element_text(size = 14, angle = 30, hjust = 1, color = "gold")) +
+    ylim(0, 25) +
+    facet_wrap(~Diet, ncol = 1)
+```
+
+```{r}
+
+plot_1 <- ggplot(ChickWeight, aes(x = weight,fill = Diet)) +
+    geom_histogram(color = "black", binwidth = 4) +
+    labs(x = "chick weight", y = "Number of chicks", title = "Histogram of chick weights", subtitle = "chickweight dataset") +
+    theme(axis.title = element_text(size = 8, face = "bold"), axis.text.x = element_text(size = 14, angle = 30, hjust = 1, color = "gold")) +
+    facet_wrap(~Diet, ncol = 1, scales = "free_y")
+```
+
+
+```{r}
+
+plot_2 <- ggplot(ChickWeight, aes(x = Time, y = weight, color = Diet)) +
+    geom_point() +
+    geom_smooth(method=lm)
+
+plot_2
+```
+
+
+
+Collate that last plot with the last histogram in the previous exercise.
+```{r}
+renv::install("cowplot")
+library(cowplot)
+```
+
+Label the panels "A" and "B".
+
+
+```{r}
+library(patchwork)
+plot_grid(plot_1, plot_2, labels = c("A", "B"))
+plot_grid()
+```
+
+
+collate
+
+
+```{r}
+
+diet_colors <- c("1" = "red", "4" = "blue", "3" = "gold", "2" = "purple")
+
+plot_2 <- ggplot(ChickWeight, aes(x = Time, y = weight, color = Diet)) +
+    geom_point() +
+    geom_smooth(method=lm) +
+    scale_color_manual(values = diet_colors)
+plot_2
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
