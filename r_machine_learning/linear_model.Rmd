@@ -1,0 +1,134 @@
+---
+title: "linear_regression_machine_learning"
+author: "PaulMetz"
+date: "2-3-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+load tidyverse
+
+```{r}
+library(tidyverse)
+```
+
+The ChickWeight data set measures the impact of different diets on the early growth of chicks.
+Fit a linear mode to measure the effect of Time and Diet in the ChickWeight data set.
+
+```{r}
+View(ChickWeight)
+chicks_lm_fit <- lm(weight ~ Time + Diet, ChickWeight)
+
+chicks_lm_fit
+```
+summary(chicks_lm_fit)
+
+```{r}
+summary(chicks_lm_fit)
+```
+
+plot the linear model
+
+```{r}
+plot1 <- ggplot(ChickWeight, aes(Time, weight, col = Diet)) +
+    geom_point() +
+    stat_smooth(method = "lm")
+
+plot1
+```
+
+Linear model for individual variables
+
+```{r}
+chicks_lm_fit <- lm(weight ~ Time, ChickWeight)
+
+chicks_lm_fit
+```
+plot the new linear model
+
+```{r}
+plot2 <- ggplot(ChickWeight, aes(Time, weight)) +
+    geom_point() +
+    stat_smooth(method = "lm") +
+    geom_abline(slope=8.803, intercept = 27.467)
+
+plot2
+```
+
+
+```{r}
+chicks_lm_fit <- lm(weight ~ Diet, ChickWeight)
+
+chicks_lm_fit
+```
+```{r}
+plot3 <- ggplot(ChickWeight, aes(Diet, weight)) +
+    geom_boxplot() +
+    geom_point() 
+
+plot3
+```
+
+
+
+So from above we can see that each diet has a different slope(first plot). So the linear model we made before doesn't correlate with the lm graph we made. So lets improve the lm model. 
+
+```{r}
+chicks_lm_fit <- lm(weight ~ Time * Diet, ChickWeight)
+
+chicks_lm_fit
+```
+See above: intercept: 30.9; where diet1 intercepts x = 0. Time:Diet2 says how much influence time has on the weight for diet2, compared to diet1. They all take Diet1 as a base so to say. 
+
+
+
+
+plot the linear model again
+
+```{r}
+plot4 <- ggplot(ChickWeight, aes(Time, weight, col = Diet)) +
+    geom_point() +
+    stat_smooth(method = "lm") +
+    geom_abline(slope = 6.8418 + 4.5811, intercept = 30.9310 - 12.6807)
+plot4
+```
+
+How much does weight increase per unit of Time for the top diet?
+
+so that would be 6.8418 + 4.5811 = 11.4229
+
+Does the top diet drive an increase in body weight that is significantly faster than the next best diet?
+
+```{r}
+chicks_lm_fit <- lm(weight ~ Time * Diet, ChickWeight)
+summary(chicks_lm_fit)
+
+```
+
+above doesnt show the comparison between diet3 and diet4, which are the top two diets. so we need to compared those instead of diet3 to diet1.
+
+```{r}
+ChickWeight$Diet <- relevel(ChickWeight$Diet, "4")
+chicks_lm_fit <- lm(weight ~ Time * Diet, ChickWeight)
+summary(chicks_lm_fit)
+```
+
+predict based on value
+```{r}
+predict(chicks_lm_fit, tibble(Time = 5, Diet = "3"))
+```
+
+
+
+
+
+
+
+
+
+
+
+

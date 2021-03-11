@@ -1,0 +1,131 @@
+---
+title: "Differential_expression"
+author: "PaulMetz"
+date: "3-3-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load tidyverse and DESeq
+
+```{r}
+library(tidyverse)
+library(DESeq2)
+```
+Convert the counts table (obds_countstable.tsv.gz) and the sample
+information table (obds_sampletable.tsv) into a suitable format for
+generating a DESeqDataSet object
+
+```{r}
+counts_table = read.table("data/obds_countstable.tsv.gz", header = TRUE, row.names = 1)
+View(counts_table)
+
+sample_table = read.table("data/obds_sampletable.tsv", sep = "\t", header = TRUE, row.names = 1)
+View(sample_table)
+
+DESeqDataSetFromMatrix()
+```
+
+convert counts table df to matrix
+
+```{r}
+counts_table <- as.matrix(counts_table)
+```
+
+Set Egr2/3 DKO CD8 cells as the reference level
+In order to do this we need to remove the replicate number from the sample title colum to be able to compare the right sample groups
+
+```{r}
+sample_table <- sample_table %>%
+    separate(sample_title, into = c("egr", "ko", "cell", "replicate"))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,266 @@
+---
+title: "Dimensionality_reduction"
+author: "PaulMetz"
+date: "1-3-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load in data
+
+```{r}
+logcounts <- read.csv("data/logcounts.csv", row.names = 1)
+View(logcounts)
+
+```
+
+Load tidyverse
+
+```{r}
+library(tidyverse)
+```
+
+Convert to a matrix and transpose
+
+```{r}
+logcounts_matrix_transposed <- t(as.matrix(logcounts))
+View(logcounts_matrix_transposed)
+```
+
+Perform PCA. Inspect the structure of the output.
+
+```{r}
+
+logcounts.pca <- prcomp(logcounts_matrix_transposed, center = TRUE, scale = FALSE)
+str(logcounts.pca)
+logcounts_pca_scores <- as.data.frame(logcounts.pca$x)
+```
+
+Draw a scatter plot of the top two principal components and color by various experimental metadata in cell_metadata.csv. Which experimental factors show the largest variance in the data?
+
+```{r}
+cell_metadata <- read.csv("data/cell_metadata.csv")
+View(cell_metadata)
+```
+
+Select first two columns for above exercise
+
+```{r}
+first_two_pcas <- logcounts_pca_scores[,1:2]
+View(first_two_pcas)
+```
+
+Convert rownames to a column
+
+```{r}
+table_for_plotting <- first_two_pcas %>% 
+    rownames_to_column(var = "Sample") %>%
+    full_join(cell_metadata)
+
+View(temp)    
+        
+```
+
+Make scatterplot
+
+```{r}
+
+plot1 <- ggplot(table_for_plotting, aes(x = PC1, y = PC2, col = Status)) +
+    geom_point()
+
+plot1
+```
+
+Draw a scatter plot of the top two principal components and color by various experimental metadata
+in cell_metadata.csv . Which experimental factors show the largest variance in the data?
+
+```{r}
+
+plot2 <- ggplot(table_for_plotting, aes(x = PC1, y = PC2, col = Infection)) +
+    geom_point()
+
+plot3 <- ggplot(table_for_plotting, aes(x = PC1, y = PC2, col = Status)) +
+    geom_point()
+
+plot4 <- ggplot(table_for_plotting, aes(x = PC1, y = PC2, col = Time)) +
+    geom_point()
+
+library(cowplot)
+
+plot_grid(plot2, plot3, plot4, labels = c("Infection", "Status", "Time"), ncol = 1, nrow = 3)
+
+
+```
+
+Draw a density plot, faceted by time and infection, colored by status, to inspect the variance of each
+experimental factor on the top principal component.
+
+```{r}
+plot5 <- ggplot(table_for_plotting, aes(x = PC1, col = Status)) +
+    geom_density() +
+    facet_grid(rows = vars(Infection), cols = vars(Time))
+
+plot5
+```
+
+Draw a bar plot of variance explained by each principal component. How many principal components
+would you keep for downstream analyses?
+
+
+```{r}
+variance_table <- data.frame(variance = (logcounts.pca$sdev)^2)
+variance_table$fraction <- variance_table$variance/sum(variance_table$variance)
+PC_numbers <- seq(1,nrow(variance_table))
+variance_table$PC <- PC_numbers
+variance_table <- variance_table %>%
+    select(PC, variance, fraction)
+View(variance_table)
+
+plot6 <- ggplot(variance_table, aes(x = PC, y = fraction)) +
+    geom_col() +
+    xlim(0, 100)
+
+plot6
+
+```
+
+Find the names of the top genes associated with the top principal components.
+
+cumulative sum
+
+```{r}
+
+variance_table$cum_sum <- cumsum(variance_table$fraction)
+
+View(variance_table)
+
+plot7 <- ggplot(variance_table, aes(x = PC, y = cum_sum)) +
+    geom_line() +
+    xlim(0, 100)
+
+plot7
+
+```
+
+Find the names of the top genes associated with the top principal components.
+
+
+```{r}
+genes_influence <- as.data.frame(logcounts.pca$rotation)
+genes_influence$gene_ID <- rownames(genes_influence)
+
+temp <- genes_influence %>%
+    arrange(desc(PC1)) %>%
+    select(gene_ID, PC1)
+
+View(temp)
+```
+
+
+Visualise the gene expression value of the gene with the highest loading for PC1 (ENSG00000172183) as color on a scatter plot of PC1 and PC2. What do you observe?
+
+
+```{r}
+View(table_for_plotting)
+ENSG00000172183 <- as.numeric(logcounts["ENSG00000172183",])
+ENSG00000172183
+
+table_for_plotting$ENSG00000172183 <- ENSG00000172183
+View(table_for_plotting)
+
+plot8 <- ggplot(table_for_plotting, aes(x = PC1, y = PC2, col = ENSG00000172183)) +
+    geom_point()
+
+plot8
+```
+
+Compare PCA to t-SNE to UMAP. Note that t-SNE and UMAP should be given the subset of principal
+components selected above.
+
+
+```{r}
+library(umap)
+
+subset_logcounts.pca <- logcounts.pca$x[,1:15]
+
+View(subset_logcounts.pca)
+View(cell_metadata)
+
+
+logcounts_umap <- umap(subset_logcounts.pca)
+logcounts_umap_layout <- as.data.frame(logcounts_umap$layout)
+logcounts_umap_layout$Sample <- rownames(logcounts_umap_layout)
+View(logcounts_umap_layout)
+
+logcounts_umap_layout_metadata <- logcounts_umap_layout %>%
+    full_join(cell_metadata)
+View(logcounts_umap_layout_metadata)
+
+plot9 <- ggplot(logcounts_umap_layout_metadata, aes(x = V1, y = V2, col = Time)) +
+    geom_point()
+
+plot9
+
+```
+
+
+```{r}
+out_kmeans <- kmeans(x = logcounts.pca$x[, 1:25], centers = 4)
+str(out_kmeans)
+```
+
+
+
+```{r}
+kmeans_scree <- lapply(seq_len(30), function(x) {
+    out <- kmeans(x = logcounts.pca$x[, 1:25], centers = x)
+    tibble(
+        k = x,
+        totss = out$totss,
+        betweenss = out$betweenss,
+        withinss_sum = sum(out$withinss)
+    )
+}) %>%
+    bind_rows()
+
+kmeans_scree
+
+
+```
+
+
+
+```{r}
+ggplot(kmeans_scree, aes(k, withinss_sum)) +
+geom_line(linetype = "F1", size = 0.2) +
+geom_point() +
+labs(title = "sum(withinss)") +
+cowplot::theme_cowplot()
+
+
+```
+
+
+```{r}
+comparison_table <- tibble(
+sample = rownames(logcounts.pca$x),
+cell_metadata[rownames(logcounts.pca$x), ] %>% as_tibble(),
+kmeans = kmeans(x = logcounts.pca$x, centers = 4)$cluster,
+)
+table(comparison_table$Time, comparison_table$kmeans)
+```
+
+
+
+
+
+
+
+
+
+
+
+

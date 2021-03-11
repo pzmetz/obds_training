@@ -1,0 +1,92 @@
+---
+title: "Regression_excersise"
+author: "PaulMetz"
+date: "2-3-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load caret
+
+```{r}
+library(caret)
+install.packages("e1071")
+library(Cubist)
+```
+
+load Boston housing data
+
+```{r}
+library(mlbench)
+data(BostonHousing)
+```
+
+Get familiar with the data set. What are rows? What are columns?
+
+```{r}
+View(BostonHousing)
+```
+
+Partition the data set into one training and one test set. Make sure the two sets are balanced with respect to medv (the median house value of districts).
+
+```{r}
+set.seed(998)
+inTrain <- sample(1:nrow(BostonHousing), floor(.8*nrow(BostonHousing)))
+
+train_pred <- BostonHousing[ inTrain, -14]
+test_pred  <- BostonHousing[-inTrain, -14]
+
+train_resp <- BostonHousing$medv[ inTrain]
+test_resp  <- BostonHousing$medv[-inTrain]
+
+View(train_resp)
+```
+
+Train a model, e.g. a linear regression model.
+Inspect and evaluate the performance of the model during training.
+
+```{r}
+#modelLookup("cubist")
+model_tree <- cubist(x = train_pred, y = train_resp, committees = 100)
+summary(model_tree)
+```
+#https://cran.r-project.org/web/packages/Cubist/vignettes/cubist.html 
+Use the model to make predictions on the test set. How accurate is our model?
+
+```{r}
+
+model_tree_pred <- predict(model_tree, test_pred, neighbors = 2)
+cor(model_tree_pred, test_resp)^2
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
