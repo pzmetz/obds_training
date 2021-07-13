@@ -12,6 +12,10 @@
 #   key_not_found += 1
 
 
+# To run this script on the cluster in your Github folder, you need to go to that directory in the terminal
+# Then in the terminal, you type: source py3/bin/activate
+# this loads the right environment for the code to run, which requires biopython.
+
 # Supplementary Data 3: count_spacers.py
 
 from Bio import SeqIO
@@ -21,8 +25,8 @@ import numpy as np
 import sys
 import argparse
 
-KEY_REGION_START = 18  # start index of key region
-KEY_REGION_END = 40  # end index of key region
+KEY_REGION_START = 0  # start index of key region
+KEY_REGION_END = 17  # end index of key region
 # identifies sequence before guide to determine guide position
 KEY = "ATTTCTACTCTTGTAGAT"
 
@@ -46,13 +50,13 @@ def count_spacers(input_file, fastq_file, output_file, guide_g):
             reader = csv.reader(infile)
             dictionary = {rows[0]: 0 for rows in reader}
     except:
-        print 'could not open', input_file
+        print ('could not open', input_file)
 
     # open fastq file
     try:
         handle = open(fastq_file, "rU")
     except:
-        print "could not find fastq file"
+        print("could not find fastq file")
         return
 
     # process reads in fastq file
