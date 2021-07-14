@@ -12,7 +12,7 @@
 
 # Converting your CRISPR library excel file to a csv file:
     # on a mac, conversion of excel files to csv files happens with CR (Carriage return; https://leemendelowitz.github.io/blog/remove-carriage-return-control-character.html).
-    # You can convert your mac.csv to unix.csv by using this code in the command line: tr '\r' '\n' < DC_Metrorail_Ridership.mac.csv > DC_Metrorail_Ridership.unix.csv
+    # You cac_or_d.readlines()n convert your mac.csv to unix.csv by using this code in the command line: tr '\r' '\n' < DC_Metrorail_Ridership.mac.csv > DC_Metrorail_Ridership.unix.csv
     # now things like head will work, so you can check the file.
 
 # To run this script, you need to ssh onto the cluster using a terminal, move to the folder that contains this script, module load python and then run the script from there from the terminal.
@@ -25,12 +25,14 @@ fastq_file_path = "/dunnstore/hassan/paul/HumagneC.D_validation/Fastq_files/test
 def Determine_C_or_D_gRNAs(fastq_file_path):
     # open the file you inputted as c_or_d to read it ('r')
     with open(fastq_file_path, 'r') as c_or_d:
+        # read the lines in c_or_d and assign it to variable 'data'
+        data = c_or_d.readlines()
         # itterate over lines in the reference database and do something for each gRNA:
         for gRNA_sequence_Humagne_C in open("Humagne_C.csv"):
             # start a count, at -1 so the first count/starting position will be 0.
             count = -1
             # for each gRNA you itterate over each line in the data file
-            for line in c_or_d.readlines():
+            for line in data:
                 # add 1 to the count
                 count = count + 1
                 # if the sequence of the gRNA from Humagne C is present in one of the lines of the data file
@@ -39,22 +41,22 @@ def Determine_C_or_D_gRNAs(fastq_file_path):
                 # after (count +1 and count +2) into a list for Humagne C, called c_fastq, using append
                 if gRNA_sequence_Humagne_C in line:
                     with open("/dunnstore/hassan/paul/HumagneC.D_validation/Fastq_files/test_reads_Humagne_C.fastq","a") as C:
-                        C.write(c_or_d.readlines()[count - 1])
-                        C.write(c_or_d.readlines()[count])
-                        C.write(c_or_d.readlines()[count + 1])
-                        C.write(c_or_d.readlines()[count + 2])
+                        C.write(data[count - 1])
+                        C.write(data[count])
+                        C.write(data[count + 1])
+                        C.write(data[count + 2])
         # same thing as for Humagne C, but now for Humagne D. So you go over the same file and determine if it
         # contains a gRNA from Humagne D and appends it to a list for Humagne D, called d_fastq.
         for gRNA_sequence_Humagne_D in open("Humagne_D.csv"):
             count = -1
-            for line in c_or_d.readlines():
+            for line in data:
                 count = count + 1
                 if gRNA_sequence_Humagne_D in line:
                     with open("/dunnstore/hassan/paul/HumagneC.D_validation/Fastq_files/test_reads_Humagne_D.fastq","a") as D:
-                        D.write(c_or_d.readlines()[count - 1])
-                        D.write(c_or_d.readlines()[count])
-                        D.write(c_or_d.readlines()[count + 1])
-                        D.write(c_or_d.readlines()[count + 2])
+                        D.write(data[count - 1])
+                        D.write(data[count])
+                        D.write(data[count + 1])
+                        D.write(data[count + 2])
     # end of script
     return
 
