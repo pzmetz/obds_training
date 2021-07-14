@@ -25,8 +25,8 @@ import numpy as np
 import sys
 import argparse
 
-KEY_REGION_START = 0  # start index of key region
-KEY_REGION_END = 17  # end index of key region
+KEY_REGION_START = 0  # start index of key region 18
+KEY_REGION_END = 17  # end index of key region 40
 # identifies sequence before guide to determine guide position
 KEY = "ATTTCTACTCTTGTAGAT"
 
@@ -66,12 +66,10 @@ def count_spacers(input_file, fastq_file, output_file, guide_g):
         read_sequence = str.upper(str(record.seq)) #DJB comment - reads sequence and converts it to uppercase
         key_region = read_sequence[KEY_REGION_START:KEY_REGION_END] #DJB - Returns sequence between KEY_REGION_START & KEY_REGION_END.
                                                                     #Has already been identified as being between 20 & 40.
-
-        # I replaced key_region with read_sequence, because the programme should look for the KEY in the entire read and not in the key_region, which does not contain the KEY as defined above.
-        key_index = read_sequence.find(KEY) #DJB comment - Agreed. Perhaps they mean ADAPTOR when they say KEY.
-        if key_index >= 0: #DJB comment - This will always be true. Can't see how key_index would ever be less than 0.
-            # I replaced the section as stated above this script with as it is now.
-            guide = key_region
+        key_index = read_sequence.find(KEY)
+        if key_index >= 0:
+            start_index = key_index + KEY_REGION_START + len(KEY)
+            guide = read_sequence[start_index:(start_index + 23)]
             print(guide)
             if guide in dictionary:
                 dictionary[guide] += 1
@@ -80,6 +78,20 @@ def count_spacers(input_file, fastq_file, output_file, guide_g):
                 non_perfect_matches += 1
         else:
             key_not_found += 1
+
+#        # I replaced key_region with read_sequence, because the programme should look for the KEY in the entire read and not in the key_region, which does not contain the KEY as defined above.
+#        key_index = read_sequence.find(KEY) #DJB comment - Agreed. Perhaps they mean ADAPTOR when they say KEY.
+#        if key_index >= 0: #DJB comment - This will always be true. Can't see how key_index would ever be less than 0.
+#            # I replaced the section as stated above this script with as it is now.
+#            guide = key_region
+#            print(guide)
+#            if guide in dictionary:
+#                dictionary[guide] += 1
+#                perfect_matches += 1
+#            else:
+#                non_perfect_matches += 1
+#        else:
+#            key_not_found += 1
 
     # create ordered dictionary with guides and respective counts and output as a csv file
     dict_sorted = OrderedDict(sorted(dictionary.items(), key=lambda t: t[0]))
