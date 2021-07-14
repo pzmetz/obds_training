@@ -12,7 +12,7 @@
 
 # Converting your CRISPR library excel file to a csv file:
     # on a mac, conversion of excel files to csv files happens with CR (Carriage return; https://leemendelowitz.github.io/blog/remove-carriage-return-control-character.html).
-    # You can convert your mac.csv to unix.csv by using this code in the command line: tr '\r' '\n' < DC_Metrorail_Ridership.mac.csv > DC_Metrorail_Ridership.unix.csv
+    # You cac_or_d.readlines()n convert your mac.csv to unix.csv by using this code in the command line: tr '\r' '\n' < DC_Metrorail_Ridership.mac.csv > DC_Metrorail_Ridership.unix.csv
     # now things like head will work, so you can check the file.
 
 # To run this script, you need to ssh onto the cluster using a terminal, move to the folder that contains this script, module load python and then run the script from there from the terminal.
