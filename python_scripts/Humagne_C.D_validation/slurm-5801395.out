@@ -1,0 +1,5 @@
+Start - Thu Jul 15 10:27:48 UTC 2021
+ls: cannot open directory '/etc/munge': Permission denied
+ls: cannot open directory '/etc/ssl/private': Permission denied
+It took 247 seconds
+Finish - Thu Jul 15 10:31:55 UTC 2021

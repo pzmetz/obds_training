@@ -19,20 +19,27 @@
 # Otherwise, the script will not find the right files, because atom runs it from a different place if you run it by clicking the play button above.
 
 # Here you fill in the path of the fastq file you want to check for Humagne C or D guides
+
+# import pysam package, make sure to have pysam installed in when you run the script from the command line
+import pysam
+
 fastq_file_path = "/dunnstore/hassan/paul/HumagneC.D_validation/Fastq_files/test_fastq_files/250_reads.fastq"
 
 # function named 'Determine_C_or_D_gRNAs' of variable defined above
 def Determine_C_or_D_gRNAs(fastq_file_path):
-    # open the file you inputted as c_or_d to read it ('r')
-    with open(fastq_file_path, 'r') as c_or_d:
-        # read the lines in c_or_d and assign it to variable 'data'
-        data = c_or_d.readlines()
-    # itterate over lines in the reference database and do something for each gRNA:
+    with open("/dunnstore/hassan/paul/HumagneC.D_validation/Fastq_files/test_reads_Humagne_C.fastq","a") as C:
+        with open("/dunnstore/hassan/paul/HumagneC.D_validation/Fastq_files/test_reads_Humagne_D.fastq","a") as D:
+            with pysam.FastxFile(fastq_file_path) as fastq_inputfile:
+                # iterate over 'entries in fastq' - entry object = 4 lines for each read
+                for entry in fastq_inputfile:
+                    for gRNA_sequence_Humagne_C in open("Humagne_C.csv"):
+                        # check if it matches your string
+                        # if matches C write to file c
+                        if entry.sequence[18:43] in gRNA_sequence_Humagne_C:
+                            # write entry to C file
+                            C.write(str(entry))
+                            C.write("\n")
 
-    c_fastq = [[gRNA_sequence_Humagne_C * line for line, count in enumerate(data)] for gRNA_sequence_Humagne_C in open("Humagne_C.csv")]
-    for line in c_fastq:
-        with open("/dunnstore/hassan/paul/HumagneC.D_validation/Fastq_files/test2_reads_Humagne_C.fastq","a") as C:
-            C.write(line)
     # end of script
     return
 
