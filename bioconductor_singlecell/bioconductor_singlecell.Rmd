@@ -1,0 +1,362 @@
+---
+title: "bioconductor_scsequencing"
+author: "PaulMetz"
+date: "9-3-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+http://bioconductor.org/books/release/OSCA/overview.html#quick-start
+
+
+alternative to seurat, both are good. depends on question. 
+
+load library
+```{r}
+library(DropletUtils)
+```
+
+1. Import the 􀃘ltered matrix into R; use DropletUtils. What can you tell about the raw data?
+
+```{r}
+sce <- read10xCounts("data/", sample.names = )
+#View(sce)
+#dim(sce)
+#str(sce)
+
+temp <- as.data.frame(colData(sce))
+length(temp)
+
+#create a sequence of number sfrom 1 to number of columns in sce
+sce <- read10xCounts("data/", sample.names = "pbmc")
+
+#View(as.data.frame(colData(sce)))
+#dim(sce)
+```
+
+2. Compute and visualise quality control metrics; use scatter. Would you remove any cell?
+
+```{r}
+library(scater)
+perCellQCMetrics(sce)
+    #subsets = NULL, later we can change this to subset/filter mitochondrial genes expressing cells. 
+
+sce <- addPerCellQC(sce)
+#View(as.data.frame(colData(sce)))
+
+rowData(sce) #ensemble IDs
+rowData(sce) #symbol colum showing gene names
+
+# Mitochondrial genes
+mito_genes <- rownames(sce)[grep("^MT-", rowData(sce)$Symbol)]
+
+# Ribosomal genes
+ribo_genes <- rownames(sce)[grep("^RP[SL]", rowData(sce)$Symbol)]
+
+# Hemoglobin genes - includes all genes starting with HB except HBP.
+hb_genes <- rownames(sce)[grep("^HB[^(P)]", rowData(sce)$Symbol)]
+
+sce2 <- addPerCellQC(sce, subsets = list(mt = mito_genes, hb = hb_genes, 
+    ribo = ribo_genes))
+
+#View(as.data.frame(colData(sce2)))
+```
+
+#visialise quality metrics
+
+```{r}
+plot1 <- ggplot(as.data.frame(colData(sce2)), aes(x = subsets_mt_percent))+geom_histogram(bins= 500)+geom_vline(xintercept = 20)
+```
+#see above, probably cut of at 20% or so. 
+
+```{r}
+plot2 <- ggplot(as.data.frame(colData(sce2)), aes(x = sum))+geom_histogram(bins = 100)+geom_vline(xintercept = c(3000, 20000))
+```
+
+```{r}
+plot3 <- ggplot(as.data.frame(colData(sce2)), aes(x = detected))+geom_histogram(bins = 100)+geom_vline(xintercept = c(500, 2500))
+```
+
+```{r}
+plot4 <- ggplot(as.data.frame(colData(sce2)), aes(x = sum, y = detected))+geom_point()
+```
+
+```{r}
+library(cowplot)
+plot_grid(plot1, plot2, plot3, plot4)
+```
+
+```{r}
+sce <- sce2
+dim(sce)
+
+sce_subset <- sce[,colData(sce)$subsets_mt_percent < 15 & colData(sce)$sum > 2500 & colData(sce)$sum < 20000 & colData(sce)$detected > 1000 & colData(sce)$detected < 4250]
+
+dim(sce_subset)
+```
+```{r}
+perFeatureQCMetrics(sce_subset)
+
+sce_subset <- addPerFeatureQC(sce_subset)
+
+
+sce_subset <- sce_subset[rowData(sce_subset)$detected >0,]
+#dim(sce_subset)
+```
+
+Convert the counts into normalized expression values to eliminate cell-speci􀃘c biases (e.g., in capture
+ef􀃘ciency); use scater and/or scran.
+
+```{r}
+library(scran)
+#View(sce)
+sce_subset <- computeSumFactors(sce_subset)
+sce_subset <- logNormCounts(sce_subset)
+assayNames(sce_subset)
+```
+Plot the variance against the mean of each gene.
+```{r}
+#View(sce_subset)
+
+x <- DelayedArray(assay(sce_subset, "counts"))
+mean <- DelayedMatrixStats::rowMeans2(x)
+variance <- DelayedMatrixStats::rowVars(x)
+df <- data.frame(mean = mean, variance = variance)
+
+plot5 <- ggplot(df, aes(x = log2(mean+1), y = log2(variance+1))) +
+    geom_point()
+plot5
+
+```
+
+```{r}
+#View(sce_subset)
+
+x <- DelayedArray(assay(sce_subset, "logcounts"))
+mean <- DelayedMatrixStats::rowMeans2(x)
+variance <- DelayedMatrixStats::rowVars(x)
+df <- data.frame(mean = mean, variance = variance)
+
+plot6 <- ggplot(df, aes(x = mean, y = variance)) +
+    geom_point()
+plot6
+
+```
+
+Select features for downstream analyses, e.g. highly variable genes; use scran.
+Use scran::modelGeneVar() to model the variance of the log-expression pro􀃘les for each gene.
+What is the output?
+Visualise the relation between the mean expression of each gene and the total / biological / technical variance of each gene.
+
+
+```{r}
+gene_variance.df <- scran::modelGeneVar(sce_subset)
+#View(gene_variance.df)
+
+gene_variance.df <- as.data.frame(gene_variance.df)
+
+#View(as.data.frame(gene_variance.df))
+
+plot7 <- ggplot(gene_variance.df, aes(x = mean, y = total)) +
+    geom_point()
+plot8 <- ggplot(gene_variance.df, aes(x = mean, y = tech)) +
+    geom_point()
+plot9 <- ggplot(gene_variance.df, aes(x = mean, y = bio)) +
+    geom_point()
+
+plot_grid(plot7, plot8, plot9)
+
+```
+Note: How do you interpret those different values?
+Use scran::getTopHVGs() to identify highly variable genes.
+Note: what is the output? How many genes do you identify? Where are those genes located in the meanvariance
+plot? What happens to this plot if you set more stringent thresholds to de􀃘ne highly variable
+genes?
+
+```{r}
+top10_most_variable_genes <- scran::getTopHVGs(gene_variance.df, var.field = "bio", prop = 0.1)
+```
+
+```{r}
+set.seed(5637)
+sce_subset <- scater::runPCA(sce_subset, subset_row = top10_most_variable_genes, ncomponents = 50)
+
+percent.var <- attr(reducedDim(sce_subset), "percentVar")
+
+#View(percent.var)
+
+df2 <- data.frame(x = seq(1, 50), y = percent.var)
+
+plot10 <- ggplot(df2, aes(x = x, y = y)) +
+    geom_col()
+
+plot10
+#reduced(sce_subset)
+#reducedDimNames(sce_subset)
+
+```
+umap
+updated to use 12 dimensions since we found this later on. 
+```{r}
+sce_subset <- scater::runUMAP(sce_subset, pca = 12)
+
+reducedDimNames(sce_subset)
+```
+Visualise the layout of cells produced by each of those dimensionality reduction methods.
+Considering coloring points with quality control metrics
+
+```{r}
+#View(sce_subset)
+
+plotReducedDim(sce_subset, dimred = "UMAP", colour_by = "subsets_mt_percent")
+
+```
+
+```{r}
+#View(sce_subset)
+
+plotReducedDim(sce_subset, dimred = "PCA", colour_by = "subsets_mt_percent")
+
+```
+
+```{r}
+plotPCA(sce_subset, ncomponents = 4, colour_by = "subsets_mt_percent")
+```
+
+Exercise step 6. Clustering
+
+Use scran::getClusteredPCs() to cluster cells after using varying number of PCs and pick the
+number of PCs using a heuristic based on the number of clusters.
+
+```{r}
+
+#View(sce_subset)
+
+PCs_matrix <- reducedDim(sce_subset)
+
+clustered_PCs.df <- scran::getClusteredPCs(PCs_matrix)
+
+
+metadata(clustered_PCs.df)$chosen #tells us 12, so that should be the ideal number of clusters. 
+
+```
+
+Use scran::buildSNNGraph() and igraph::cluster_louvain() with the "ideal" number of PCs.
+
+d = 12 based on previous
+maybe change k depending on what you get.
+
+```{r}
+library(igraph)
+snngraph <- scran::buildSNNGraph(sce_subset, d = 12)
+
+```
+
+we need to look at membership which tells us which cluster is used for each cell.
+
+```{r}
+louvain <- igraph::cluster_louvain(snngraph)
+length(membership(louvain))
+cluster_identity <- as.factor(membership(louvain)) # need to change to numeric to be able to use later on
+dim(sce_subset)
+```
+Visualise the assigned cluster on your preferred dimensionality reduction layout.
+
+we made UMAP already, lets make TSNE to compare
+
+```{r}
+sce_subset <- scater::runTSNE(sce_subset, pca = 12)
+
+reducedDimNames(sce_subset)
+```
+```{r}
+#we need to add cluster_identity to colData in the sce_subset object.
+
+colData(sce_subset)$cluster_identity <- cluster_identity
+```
+
+now we can plot
+```{r}
+View(colData(sce_subset))
+
+plotReducedDim(sce_subset, dimred = "UMAP", colour_by = "cluster_identity", text_by = "cluster_identity")
+
+```
+
+now plot the TSNE one
+
+
+```{r}
+plotReducedDim(sce_subset, dimred = "TSNE", colour_by = "cluster_identity", text_by = "cluster_identity")
+```
+
+Exercise step 7. Cluster markers
+
+```{r}
+
+
+markers <- scran::findMarkers(sce_subset, groups = cluster_identity, test.type = "wilcox")
+
+#markers[[1]]
+```
+
+Visualise the expression of selected markers:
+as a dot plot, optionally with a violin layer.
+on a dimensionality reduction layout.
+
+
+```{r}
+rownames(sce_subset) <- rowData(sce_subset)$Symbol
+scater::plotUMAP(sce_subset, colour_by = "S100A4")
+```
+```{r}
+plotExpression(sce_subset, features=c("S100A4", "TRAC"),
+x="cluster_identity", colour_by="cluster_identity")
+```
+
+
+
+http://bioconductor.org/books/release/OSCA/overview.html#quick-start
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

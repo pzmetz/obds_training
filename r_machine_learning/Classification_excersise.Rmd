@@ -1,0 +1,101 @@
+---
+title: "Classification"
+author: "PaulMetz"
+date: "2-3-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load caret
+
+```{r}
+library(caret)
+```
+
+Get familiar with the data set. What are rows? What are columns?
+
+```{r}
+View(iris)
+class(iris)
+```
+
+Use the caret::featurePlot() function to visualise species and measurements. Try the different options for the plot argument.
+
+```{r}
+featurePlot(x = iris[,1:4], y = iris$Species, plot = "box" )
+```
+
+Partition the data set into one training and one test set. Make sure the two sets are balanced with respect to Species .
+
+```{r}
+set.seed(998)
+inTraining <- createDataPartition(iris$Species, p = .75, list = FALSE)
+training <- iris[ inTraining,]
+testing <- iris[-inTraining,]
+```
+
+```{r}
+table(training$Species)
+```
+Train a model, e.g. linear SVM (Support Vector Machine), random forest.
+
+```{r}
+install.packages("party")
+install.packages("e1071")
+
+fitControl <- trainControl(
+    method = "boot", 
+    number = 5) ## repeated five times
+
+modelLookup("cforest")
+
+mtryFit <- train(
+    Species ~ ., data = training,
+    method = "cforest", trControl = fitControl,
+    tuneGrid = data.frame(mtry = c(1,2,3,4)))
+
+mtryFit
+```
+
+graph
+
+```{r}
+ggplot(mtryFit)
+```
+
+
+
+
+Use the model to make predictions on the test set. How accurate is the model?
+
+```{r}
+cforestPred <- predict(mtryFit, newdata = testing)
+confusionMatrix(testing$Species, data = cforestPred)$table
+class(testing$Species)
+str(testing$Species)
+class(cforestPred)
+str(testing$Species)
+```
+
+```{r}
+confusionMatrix(testing$Species, data = cforestPred)$overall["Accuracy"]
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

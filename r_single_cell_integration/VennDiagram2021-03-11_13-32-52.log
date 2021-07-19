@@ -1,0 +1,12 @@
+INFO [2021-03-11 13:32:52] $x
+INFO [2021-03-11 13:32:52] list(pbmcv2_features, pbmcv3_features)
+INFO [2021-03-11 13:32:52] 
+INFO [2021-03-11 13:32:52] $category.names
+INFO [2021-03-11 13:32:52] c("pbmcv2", "pbmcv3")
+INFO [2021-03-11 13:32:52] 
+INFO [2021-03-11 13:32:52] $filename
+INFO [2021-03-11 13:32:52] NULL
+INFO [2021-03-11 13:32:52] 
+INFO [2021-03-11 13:32:52] $output
+INFO [2021-03-11 13:32:52] [1] TRUE
+INFO [2021-03-11 13:32:52] 

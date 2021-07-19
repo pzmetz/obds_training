@@ -1,0 +1,202 @@
+---
+title: "R-pathway_analysis"
+author: "PaulMetz"
+date: "4-3-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+install packages
+
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("clusterProfiler")
+
+BiocManager::install("qusage")
+
+```
+
+
+loading library
+
+```{r}
+library(clusterProfiler)
+```
+read in files
+
+
+```{r}
+KO_CD8_vs_KO_CD4 <- read.csv("dds_apeglm_ensembl.csv")
+filtered_KO_CD8_vs_KO_CD4 <- read.csv("dds_apeglm_ensembl_filtered.csv")
+
+KO_CD8_vs_KO_CD4$X <- NULL
+filtered_KO_CD8_vs_KO_CD4$X <- NULL
+
+KO_CD8_vs_KO_CD4 <- KO_CD8_vs_KO_CD4[order(KO_CD8_vs_KO_CD4$log2FoldChange, decreasing = TRUE),]
+
+filtered_KO_CD8_vs_KO_CD4 <- filtered_KO_CD8_vs_KO_CD4[order(filtered_KO_CD8_vs_KO_CD4$log2FoldChange, decreasing = TRUE),]
+
+```
+
+
+
+```{r}
+library(magrittr)
+library(clusterProfiler)
+library(tidyverse)
+library(qusage)
+
+organism = "org.Mm.eg.db"
+BiocManager::install(organism, character.only = TRUE)
+library(organism, character.only = TRUE)
+
+#wpgmtfile <- qusage::read.gmt("wikipathways-20210210#-gmt-Mus_musculus.gmt")
+#View(wpgmtfile)
+```
+
+
+```{r}
+original_gene_list <- filtered_KO_CD8_vs_KO_CD4$log2FoldChange
+
+names(original_gene_list) <- filtered_KO_CD8_vs_KO_CD4$ensembl_id
+
+View(original_gene_list)
+
+
+gse <- gseGO(geneList=original_gene_list, 
+             ont ="ALL", 
+             keyType = "ENSEMBL", 
+             nPerm = 10000, 
+             minGSSize = 3, 
+             maxGSSize = 800, 
+             pvalueCutoff = 0.05, 
+             verbose = TRUE, 
+             OrgDb = org.Mm.eg.db, 
+             pAdjustMethod = "none")
+
+View(gse)
+
+```
+
+```{r}
+require(DOSE)
+library(DOSE)
+
+dotplot(gse, showCategory=10, split=".sign") + facet_grid(.~.sign)
+```
+
+
+```{r}
+emapplot(gse, showCategory = 10)
+```
+
+```{r}
+cnetplot(gse, categorySize="pvalue", foldChange=original_gene_list, showCategory = 3)
+```
+
+
+```{r}
+ridgeplot(gse) + labs(x = "enrichment distribution")
+
+```
+
+
+```{r}
+gseaplot(gse, by = "all", title = gse$Description[1], geneSetID = 1)
+view(gse$Description)
+```
+
+```{r}
+gse
+```
+
+
+
+
+```{r}
+ids<-bitr(names(original_gene_list), fromType = "ENSEMBL", toType = "ENTREZID", OrgDb=org.Mm.eg.db)
+
+dedup_ids = ids[!duplicated(ids[c("ENSEMBL")]),]
+
+df2 = filtered_KO_CD8_vs_KO_CD4[filtered_KO_CD8_vs_KO_CD4$ensembl_id %in% dedup_ids$ENSEMBL,]
+
+df2$Y = dedup_ids$ENTREZID
+
+# Create a vector of the gene unuiverse
+kegg_gene_list <- df2$log2FoldChange
+
+# Name vector with ENTREZ ids
+names(kegg_gene_list) <- df2$Y
+
+# omit any NA values 
+kegg_gene_list<-na.omit(kegg_gene_list)
+
+# sort the list in decreasing order (required for clusterProfiler)
+kegg_gene_list = sort(kegg_gene_list, decreasing = TRUE)
+
+kegg_organism = "mmu"
+kk2 <- gseKEGG(geneList     = kegg_gene_list,
+               organism     = kegg_organism,
+               nPerm        = 10000,
+               minGSSize    = 3,
+               maxGSSize    = 800,
+               pvalueCutoff = 0.05,
+               pAdjustMethod = "none",
+               keyType       = "ncbi-geneid")
+
+
+```
+
+
+```{r}
+library(pathview)
+
+view(kk2)
+
+# Produce the native KEGG plot (PNG)
+dme <- pathview(gene.data=kegg_gene_list, pathway.id="mmu05340", species = kegg_organism)
+
+# Produce a different plot (PDF) (not displayed here)
+dme <- pathview(gene.data=kegg_gene_list, pathway.id="mmu05340", species = kegg_organism, kegg.native = F)
+
+knitr::include_graphics("mmu05340.pathview.png")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

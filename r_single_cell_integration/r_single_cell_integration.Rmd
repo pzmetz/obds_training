@@ -1,0 +1,297 @@
+---
+title: "integration_scseq"
+author: "PaulMetz"
+date: "11-3-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+1. Import the two RDS files into R
+
+```{r}
+install.packages("remotes")
+install.packages("rlang")
+#packageVersion("rlang")
+install.packages("Seurat")
+library(Seurat)
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+
+pbmcv2_filtered <- readRDS("data/pbmcv2_filtered.rds")
+pbmcv3_filtered <- readRDS("data/pbmcv3_filtered.rds")
+```
+
+2. Create a merged Seurat object containing both sets of data
+
+```{r}
+pbmc.combined <- merge(x = pbmcv2_filtered, y = pbmcv3_filtered, add.cell.ids = c("v2", "v3"), project = "pbmc" )
+```
+
+
+3. On the merged Seurat object, perform the general steps of a Seurat analysis workflow:
+Normalisation
+Finding variable genes
+Scaling
+PCA
+Clustering
+UMAP
+
+```{r}
+pbmc.combined <- SCTransform(pbmc.combined, vars.to.regress = "percent.mt", verbose = FALSE)
+
+VlnPlot(pbmc.combined, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size = 0.1)
+```
+
+
+
+```{r}
+FeatureScatter(pbmc.combined, feature1 = "nCount_RNA", feature2 = "percent.mt")
+```
+
+
+
+4. Visualise the identified clusters on the UMAP
+
+```{r}
+pbmc.combined <- RunPCA(pbmc.combined)
+
+```
+```{r}
+ElbowPlot(pbmc.combined, ndims = 50)
+```
+Maybe based on above we can take 20 PCs for umap.
+
+5. Colour the cells in the UMAP by the original dataset from which they came i.e. v2 or v3
+Do you see any batch effects?
+
+now we 
+```{r}
+#findneighbours is greating graphs of nearest neigbours
+pbmc.combined <- FindNeighbors(pbmc.combined, dims = 1:20, k.param = 20)
+
+#split the graph into groups of cells that are similar to eachother.
+pbmc.combined <- FindClusters(pbmc.combined, resolution = 0.5) #by default uses Louvain
+```
+
+```{r}
+pbmc.combined <- RunUMAP(pbmc.combined, dims = 1:20)
+
+DimPlot(pbmc.combined, reduction = "umap", label = TRUE, group.by = "orig.ident")
+```
+
+```{r}
+FeaturePlot(pbmc.combined, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", "CD8A"))
+```
+
+```{r}
+pbmc.combined <- FindClusters(pbmc.combined, resolution = seq(0.1, 1, 0.1)) #you can see this in metadata
+```
+
+
+```{r}
+library(clustree)
+clustree(pbmc.combined)
+#at 0.0 it was divided into three clusters, at .1 into 6 clusters, 0.2 into 8 clusters. etc. 
+```
+
+
+so we have seen a clear batch effect, so we'll use suerat integration to improve this ( we use the vignette for version 3). 
+
+https://satijalab.org/seurat/archive/v3.2/integration.html 
+
+
+now we need to transform our separate datasets before integration.
+```{r}
+pbmcv2.t <- SCTransform(pbmcv2_filtered, vars.to.regress = "percent.mt", verbose = FALSE)
+
+pbmcv3.t <- SCTransform(pbmcv3_filtered, vars.to.regress = "percent.mt", verbose = FALSE)
+```
+
+
+
+
+```{r}
+DefaultAssay(pbmcv2.t)
+DefaultAssay(pbmcv3.t)
+```
+
+we then want to select features that are common between both datasets
+```{r}
+# we need list as input for next function
+pbmc.list <- list(pbmcv2.t, pbmcv3.t)
+
+#here we use the list
+pbmc.features <- SelectIntegrationFeatures(object.list = pbmc.list, nfeatures = 3000)
+
+#View(pbmc.features) #we see a vector of gene names (features)
+
+#we need two variables that contain the variable features from each data set, not necessary
+pbmcv2_features <- VariableFeatures(pbmcv2.t)
+pbmcv3_features <- VariableFeatures(pbmcv3.t)
+#intersect(pbmcv2_features, pbmcv3_features)
+length(intersect(pbmcv2_features, pbmcv3_features))
+
+pbmc.list <- PrepSCTIntegration(object.list = pbmc.list, anchor.features = pbmc.features, 
+    verbose = FALSE)
+
+#View(pbmc.list)
+```
+we can use a venn daigram to visualise the overlap
+```{r}
+install.packages("VennDiagram")
+library(ggplot2)
+library(VennDiagram)
+
+venn <- venn.diagram(x = list(pbmcv2_features, pbmcv3_features),
+category.names = c("pbmcv2", "pbmcv3"), filename = NULL,
+output = TRUE)
+
+grid.draw(venn)
+```
+
+
+1. Integrate the two datasets using Seurat v3 (following the vignette)
+Plot a UMAP of the integrated data coloured by batch
+Perform clustering on the integrated dataset
+
+```{r}
+#prepares both objects to have the same features, so we can later integrate both objects. 
+pbmc.list <- PrepSCTIntegration(object.list = pbmc.list, anchor.features = pbmc.features)
+
+#check if rownames is pbmc objects in list are the same
+#before
+rownames_pbmcv4 <- rownames(GetAssayData(object = pbmcv2.t, slot = "scale.data"))
+rownames_pbmcv5 <- rownames(GetAssayData(object = pbmcv3.t, slot = "scale.data"))
+length(intersect(rownames_pbmcv4, rownames_pbmcv5))
+identical(rownames_pbmcv4, rownames_pbmcv5)
+
+#after
+rownames_pbmcv2 <- rownames(GetAssayData(object = pbmc.list[[1]], slot = "scale.data"))
+rownames_pbmcv3 <- rownames(GetAssayData(object = pbmc.list[[2]], slot = "scale.data"))
+
+length(intersect(rownames_pbmcv2, rownames_pbmcv3))
+identical(rownames_pbmcv2, rownames_pbmcv3)
+```
+
+```{r}
+
+pbmc.anchors <- FindIntegrationAnchors(object.list = pbmc.list, normalization.method = "SCT", 
+    anchor.features = pbmc.features, verbose = FALSE, dims = 1:30)  #integration can be optimised by changing dims. 
+
+overlapping_features_pbmcobjectsv2 <- rownames(pbmc.list[[1]])
+overlapping_features_pbmcobjectsv3 <- rownames(pbmc.list[[2]])
+
+
+pbmc.integrated <- IntegrateData(anchorset = pbmc.anchors, normalization.method = "SCT", 
+    verbose = FALSE, dims = 1:30, features.to.integrate = intersect(overlapping_features_pbmcobjectsv2, overlapping_features_pbmcobjectsv3)) #use same number of dims
+
+DefaultAssay(pbmc.integrated) #default assay to work on is integrated
+
+```
+
+run PCA and UMAP
+```{r}
+pbmc.integrated <- RunPCA(pbmc.integrated, verbose = FALSE)
+
+#ElbowPlot(pbmc.integrated, ndims = 50) #to decide how many PCs we will use for UMAP
+
+pbmc.integrated <- RunUMAP(pbmc.integrated, dims = 1:20)
+```
+
+```{r}
+#View(pbmc.integrated[[]]) #check which column we need to group by
+plot1 <- DimPlot(pbmc.integrated, group.by = "orig.ident")
+plot1
+```
+```{r}
+pbmc.integrated <- FindNeighbors(pbmc.integrated, dims = 1:20, k.param = 20)
+pbmc.integrated <- FindClusters(pbmc.integrated, resolution = 0.5)
+
+#Reductions(pbmc.integrated) # to see which dimension reductions you have
+
+DimPlot(pbmc.integrated, reduction = "umap", label = TRUE) 
+```
+
+```{r}
+FeaturePlot(pbmc.integrated, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", "CD8A"))
+```
+
+```{r}
+install.packages("devtools") 
+devtools::install_github("TomKellyGenetics/leiden")
+
+library(leiden)
+
+install.packages("reticulate")
+reticulate::py_install(packages ='leidenalg')
+reticulate::py_install(packages ='igraph')
+reticulate::py_install(packages ='pandas')
+
+#lets use a different algorithm to see if it's giving different clustering
+leiden_pbmc.integrated <- FindClusters(pbmc.integrated, resolution = 0.5, algorithm = 4)
+
+#View(leiden_pbmc.integrated[[]]) #[[]] to view metadata
+
+leiden_pbmc_integrated <- FindClusters(leiden_pbmc.integrated, resolution = 0.8, algorithm = 4) # clustering with Leiden
+
+colnames(leiden_pbmc_integrated@meta.data)[9] <- "Leiden_0.8" #changing the name of the metadata column with the Leiden clustering
+
+leiden_pbmc_integrated <- FindClusters(leiden_pbmc_integrated, resolution = 0.8) # clustering with Louvain at the same resolution
+#View(pbmc_integrated[[]])
+
+DimPlot(leiden_pbmc_integrated, reduction = "umap", label=TRUE, group.by="Leiden_0.8")
+
+DimPlot(leiden_pbmc_integrated, reduction = "umap", label=TRUE, group.by="integrated_snn_res.0.8")
+```
+
+for harmony: 
+
+```{r}
+
+#below code may not work, may need additional packages and changing variable names, as you copied you it from someone else. 
+BiocManager::install("MAST")
+library(MAST)
+
+#change default assay from integrated to RNA
+DefaultAssay(pbmc.integrated) <- "RNA"
+
+DefaultAssay(pbmc.integrated)
+
+DE_genes <- FindAllMarkers(pbmc.integrated, test.use = "MAST", latent.vars = "orig.ident")
+Idents(pbmc_integrated) <- "SCT_snn_res.0.5"
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

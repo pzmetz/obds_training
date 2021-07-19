@@ -1,0 +1,285 @@
+---
+title: "DEseq2 exercise"
+author: "Ahmed"
+date: "03/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+renv::restore()
+```
+
+
+open required packages
+```{r}
+library(DESeq2)
+library(tidyverse)
+```
+Read in tables
+
+```{r}
+counts_table <- read.table("data/obds_countstable.tsv.gz", header=TRUE, row.names = 1)
+
+sample_table <- read.table("data/obds_sampletable.tsv", header=TRUE, row.names = 1, sep="\t")
+
+```
+#DeSeqDataSetFromMatrix() needs a matrix 
+
+```{r}
+counts_table <- as.matrix(counts_table)
+```
+The DESeqDataSetFromMatrix() function
+we need t remove the number of replicates because we will be comparing KO in CD4 and CD8
+
+```{r}
+sample_table <- separate(sample_table, sample_title, into=c("to_merge1", "to_merge2", "to_merge3", "replicate"), sep = "_")
+sample_table <- unite(sample_table, "egr_ko_cell", to_merge1:to_merge3, sep="_")
+```
+
+Set the reference
+
+```{r}
+sample_table$egr_ko_cell <- factor(sample_table$egr_ko_cell, levels = c("Egr2/3_DKO_CD8", "Egr2/3_DKO_CD4", "Egr2_Kin_CD8", "Egr2_Kin_CD4"))
+```
+Put the data into a DESeq2 data object
+use colData to se the column info
+```{r}
+dds <- DESeqDataSetFromMatrix(counts_table, sample_table, ~egr_ko_cell)
+colData(dds)
+levels(dds$egr_ko_cell)
+```
+#4.Access the design formula, counts matrix and sample information from dds
+
+
+```{r}
+assays(dds)$counts
+#assay(dds, "counts") -> another way
+#show the design formula
+design(dds)
+colData(dds)
+```
+```{r}
+dds <- estimateSizeFactors(dds)
+dds
+sizeFactors(dds) #balances out counts based on library size e.g. first sample counts will be timed by 1.0350641
+class(sizeFactors(dds))
+```
+#Generate a bar plot of the size factors for each sample, coloured by condition/group
+make anew table (df) with all these data
+
+```{r}
+plotting_table <- data.frame(sample = row.names(colData(dds)), size_factors= sizeFactors(dds), condition=colData(dds)$egr_ko_cell)
+```
+
+
+```{r}
+library(ggplot2)
+ggplot(plotting_table, aes(x=sample, y=size_factors, fill=condition))+
+    geom_col()+
+    theme(axis.text.x = element_text(angle = 60, hjust=1))
+```
+Obtain dispersion estimates for each gene – estimateDispersions()
+
+```{r}
+dds <- estimateDispersions(dds)
+head(assays(dds)$mu)
+dispersions(dds)
+```
+
+Plot the per-gene dispersion estimates (DESeq2 has a helper function for this)
+
+```{r}
+plotDispEsts(dds)
+```
+7. Perform the Wald test – nbinomWaldTest()
+
+```{r}
+dds <- nbinomWaldTest(dds)
+```
+#Run the three steps in 1 function DESeq
+
+```{r}
+dds <- DESeqDataSetFromMatrix(counts_table, sample_table, ~egr_ko_cell)
+dds <- DESeq(dds)
+```
+9. Access the coefficients of the NB GLM
+
+```{r}
+coef_output <- coef(dds)
+#to access p values convert it to a data frame
+View(as.data.frame(colData(dds)))
+p_values <- results(dds, c("egr_ko_cell", "Egr2/3_DKO_CD4", "Egr2/3_DKO_CD8"))
+p_values_as_df <- as.data.frame(p_values)
+```
+10. Plot a histogram of the raw and BH-adjusted p-values – do they lookas expected?
+
+```{r}
+p_adj_histogram <- ggplot(p_values_as_df, aes(x=padj))+
+    geom_histogram()
+p_adj_histogram
+
+
+```
+```{r}
+p_histogram <- ggplot(p_values_as_df, aes(x=pvalue))+
+    geom_histogram()
+p_histogram
+```
+
+```{r}
+library(cowplot)
+plot_grid(p_histogram, p_adj_histogram, labels = c("A", "B"), ncol = 2, nrow = 1)
+```
+12. Generate an MA plot of the log2 FC values for all genes
+
+```{r}
+plotMA(p_values)
+```
+13. Shrink the log2 FC values using the normal, apeglm and ashr methods
+
+
+```{r}
+dds_normal <- lfcShrink(dds, contrast = c("egr_ko_cell", "Egr2/3_DKO_CD4", "Egr2/3_DKO_CD8"), type = "normal")
+resultsNames(dds)
+dds_apeglm <- lfcShrink(dds, coef="egr_ko_cell_Egr2.3_DKO_CD4_vs_Egr2.3_DKO_CD8", type = "apeglm")
+dds_ashr <- lfcShrink(dds, contrast = c("egr_ko_cell", "Egr2/3_DKO_CD4", "Egr2/3_DKO_CD8"), type = "ashr")
+
+plot_grid(plotMA(dds_normal), plotMA(dds_apeglm), plotMA(dds_ashr), ncol = 3) #this generates 3 separate charts
+
+plotMA(dds_normal)
+p1 <- recordPlot()    # save current plot in R variable
+ 
+plotMA(dds_apeglm)
+p2 <- recordPlot()
+ 
+plotMA(dds_ashr)
+p3 <- recordPlot()
+ 
+plot_grid(p1, p2, p3, ncol = 3)
+
+```
+
+
+15. Generate a results table (one shrinkage method) containing mgi symbols
+Ø Use the org.Mm.eg.db package
+Ø Remove all genes with a padj of NA
+Ø How many Ensembl IDs are not assigned an mgi symbol and how many mgi
+symbols are duplicated?
+```{r}
+library(org.Mm.eg.db)
+
+dds_apeglm.df <- as.data.frame(dds_apeglm)
+
+dds_apeglm.df <- dds_apeglm.df %>%
+    filter(!is.na(padj))
+
+#  mapIds(x, keys, column, keytype, ..., multiVals)
+
+gene_ids <- mapIds(org.Mm.eg.db, rownames(dds_apeglm.df), column = "SYMBOL", keytype = "ENSEMBL" )
+
+gene_ids.df <- as.data.frame(gene_ids)
+
+
+gene_ids.df$ensembl_id <- rownames(dds_apeglm.df)
+
+
+dds_apeglm.df$ensembl_id <- rownames(dds_apeglm.df)
+
+
+dds_apeglm_ensembl <- dds_apeglm.df %>%
+    left_join(gene_ids.df, by = "ensembl_id")
+
+dds_apeglm_ensembl <- dds_apeglm_ensembl %>%
+    dplyr::select(ensembl_id, gene_ids, baseMean:padj)
+
+#How many Ensembl IDs are not assigned an mgi symbol and how many mgi
+#symbols are duplicated?
+
+sum(is.na(dds_apeglm_ensembl$gene_ids))
+nrow(dds_apeglm_ensembl) - length(unique(dds_apeglm_ensembl$gene_ids))
+
+```
+16.Write the results table to a CSV file
+
+```{r}
+write.csv(dds_apeglm_ensembl,"data/dds_apeglm_ensembl.csv")
+```
+
+Filter the results table for padj < 0.05 and absolute log2 FC > 1, and write to a CSV file
+
+```{r}
+dds_apeglm_ensembl_filtered <- dds_apeglm_ensembl %>%
+    filter(padj < 0.05 & log2FoldChange > 1 )
+
+nrow(dds_apeglm_ensembl_filtered)
+
+write.csv(dds_apeglm_ensembl_filtered,"data/dds_apeglm_ensembl_filtered.csv")
+
+
+```
+
+Absolute FC * logvalue
+
+
+
+
+
+
+
+Generate VST and rlog transformed counts:
+Plot the relationship between the mean expression and the sd of all genes
+– fit a trend line
+
+```{r}
+class(dds_apeglm_ensembl_filtered)
+View(dds_apeglm_ensembl_filtered)
+
+vsd <- vst(dds)
+rld <- rlog(dds)
+
+head(assay(vsd), 3)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

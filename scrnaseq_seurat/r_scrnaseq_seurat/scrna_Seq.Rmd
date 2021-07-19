@@ -1,0 +1,233 @@
+---
+title: "scrnaseq"
+author: "PaulMetz"
+date: "8-3-2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+load libraries
+
+```{r}
+library(Seurat)
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+```
+
+load in data and subsetting
+
+```{r}
+pbmc.data <- Read10X(data.dir = "filtered_feature_bc_matrix/")
+pbmc <- CreateSeuratObject(counts = pbmc.data[["Gene Expression"]], project = "pbmc3k")
+```
+
+using this website: https://satijalab.org/seurat/articles/pbmc3k_tutorial.html or this one https://satijalab.org/seurat/articles/multimodal_vignette.html
+
+
+add the protein data matrix as an assay to the pbmc seurat matrix we just created
+```{r}
+
+# create a new assay to store ADT information
+adt_assay <- CreateAssayObject(counts = pbmc.data[["Antibody Capture"]])
+
+# add this assay to the previously created Seurat object
+pbmc[["ADT"]] <- adt_assay
+```
+
+accessing slots from pbmc, e.g.:
+```{r}
+#example
+data_RNA <- FetchData(object = pbmc, vars = "ident", slot = "data")
+#head(data_RNA)
+#View(pbmc[[]]) #this SOMEHOW views the metadata slot 
+```
+
+
+```{r}
+pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-") #looks for all genes starting with ^MT- and calculates percentage of counts of mt dna genes in all counts and puts it into a new colum
+#View(pbmc[[]])
+```
+# Visualize QC metrics as a violin plot
+```{r}
+
+VlnPlot(pbmc, features = "nFeature_RNA", combine = TRUE) + geom_hline(yintercept = c(1000, 5000))
+VlnPlot(pbmc, features = "percent.mt", combine = TRUE) + geom_hline(yintercept = c(15))
+
+
+#VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
+# FeatureScatter is typically used to visualize feature-feature relationships, but can be used
+# for anything calculated by the object, i.e. columns in object metadata, PC scores etc.
+#QC plot of nCount_RNA by nFeature_RNA coloured by percent.mt (use ggplot2)
+
+```{r}
+plot1 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "percent.mt")
+plot2 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot3 <- ggplot(pbmc[[]], aes(x = nCount_RNA, y = nFeature_RNA, col = percent.mt)) +
+    geom_point()
+
+#plot1 + plot2 + plot3
+```
+
+based on above plots, we will set the following treshholds for filtering:
+
+# pbmc <- subset(pbmc, subset = nFeature_RNA > 1000 & nFeature_RNA < 5000 & percent.mt < ?)
+
+
+# run sctransform
+
+```{r}
+pbmc <- SCTransform(pbmc, vars.to.regress = "percent.mt", verbose = FALSE)
+#you will get a lot of warnings. 
+#View(pbmc)
+```
+
+
+
+```{r}
+DefaultAssay(pbmc)
+DefaultAssay(pbmc) <- "SCT" #Change default
+DefaultAssay(pbmc)
+```
+
+```{r}
+pbmc <- RunPCA(pbmc, npcs = 50) #npcs = 50 by default, we can change this. 
+```
+
+```{r}
+VizDimLoadings(pbmc, dims = 1:2, reduction = "pca")
+```
+
+```{r}
+DimPlot(pbmc, reduction = "pca", dims = c(1,2))
+```
+
+
+```{r}
+ElbowPlot(pbmc, ndims = 50)
+```
+
+Clustering
+
+```{r}
+pbmc <- FindNeighbors(pbmc, dims = 1:20, k.param = 20)
+pbmc <- FindClusters(pbmc, resolution = 0.5)
+```
+
+
+
+```{r}
+pbmc <- RunUMAP(pbmc, dims = 1:20)
+DimPlot(pbmc, reduction = "umap", label = TRUE)
+```
+
+
+```{r}
+FeaturePlot(pbmc, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", 
+    "CD8A"))
+```
+
+Generate new plot that shows mitochondrial expression, to see which have high vs low expression
+
+
+```{r}
+FeaturePlot(pbmc, features = "percent.mt")
+FeaturePlot(pbmc, features = "nFeature_RNA", min.cutoff = 1000, max.cutoff = 5000)
+
+
+DimPlot(pbmc, cells.highlight = WhichCells(pbmc, expression = percent.mt < 15)) + NoLegend()
+
+```
+
+```{r}
+#here we get rid of clusters we dont want to keep:
+pbmc_subset <- subset(pbmc, idents = c("1", "10"), invert = TRUE)
+
+DimPlot(pbmc_subset)
+
+
+```
+
+
+```{r}
+DimPlot(pbmc_subset, cells.highlight = WhichCells(pbmc_subset, expression = nFeature_RNA > 5000)) + NoLegend()
+
+DimPlot(pbmc_subset, cells.highlight = WhichCells(pbmc_subset, expression = nFeature_RNA < 1000)) + NoLegend()
+```
+
+
+
+☺
+```{r}
+pbmc_subset <- SCTransform(pbmc_subset, vars.to.regress = "percent.mt", verbose = FALSE)
+pbmc_subset <- RunPCA(pbmc_subset, pncs = 50)
+pbmc_subset <- FindNeighbors(pbmc_subset, dims = 1:20, k.param = 20)
+pbmc_subset <- FindClusters(pbmc_subset, resolution = 0.5)
+pbmc_subset <- RunUMAP(pbmc_subset, dims = 1:20)
+DimPlot(pbmc_subset, reduction = "umap", label = TRUE) 
+
+FeaturePlot(pbmc_subset, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", 
+    "CD8A"))
+```
+
+
+```{r}
+DimPlot(pbmc_subset, reduction = "umap", label = TRUE)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
