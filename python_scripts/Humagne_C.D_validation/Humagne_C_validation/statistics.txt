@@ -1,7 +1,7 @@
-Number of perfect guide matches: 6093649
-Number of nonperfect guide matches: 1
-Number of reads where key was not found: 102689
-Number of reads processed: 6196339
-Percentage of guides that matched perfectly: 100.0
-Percentage of undetected guides: 52.3
+Number of perfect guide matches: 1110151
+Number of nonperfect guide matches: 27452180
+Number of reads where key was not found: 956374
+Number of reads processed: 29518705
+Percentage of guides that matched perfectly: 3.9
+Percentage of undetected guides: 90.6
 Skew ratio of top 10% to bottom 10%: Not enough perfect matches to determine skew ratio

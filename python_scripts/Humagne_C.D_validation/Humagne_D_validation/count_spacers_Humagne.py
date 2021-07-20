@@ -70,7 +70,7 @@ def count_spacers(input_file, fastq_file, output_file, guide_g):
         if key_index >= 0:
             start_index = key_index + KEY_REGION_START + len(KEY)
             guide = read_sequence[start_index:(start_index + 23)]
-            #print(guide)
+            print(guide)
             if guide in dictionary:
                 dictionary[guide] += 1
                 perfect_matches += 1
