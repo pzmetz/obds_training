@@ -26,9 +26,9 @@ import sys
 import argparse
 
 KEY_REGION_START = 0  # start index of key region 18
-KEY_REGION_END = 17  # end index of key region 40
+KEY_REGION_END = 45  # end index of key region 40
 # identifies sequence before guide to determine guide position
-KEY = "ATTTCTACTCTTGTAGAT"
+KEY = "AGCTTGTGGAAAGGACGAAACACCGGTAATTTCTACTCTTGTAGAT"
 
 
 def count_spacers(input_file, fastq_file, output_file, guide_g):
