@@ -2,14 +2,12 @@
 .Rhistory
 .RData
 .Ruserdata
-*.csv
 *.sam
 *.bam
 *.bed
 *.bed.gz
 fragment
 fragment_1
-*.txt
 *.gz
 *.tsv
 *.png
