@@ -49,17 +49,17 @@ def count_spacers(input_file, fastq_file, output_file, guide_g):
 
 	# open library sequences and initiate dictionary of read counts for each guide
 	try:
-		with open(input_file, mode='rU') as infile: #rU mode is necessary for excel!
+		with open(input_file, mode='r') as infile: #rU mode is necessary for excel!
 			reader = csv.reader(infile)
 			dictionary = {rows[0]:0 for rows in reader}
 	except:
-		print  'could not open', input_file
+		print  ('could not open', input_file)
 
 	# open fastq file
 	try:
-		handle = open(fastq_file, "rU")
+		handle = open(fastq_file, "r")
 	except:
-		print "could not find fastq file"
+		print ("could not find fastq file")
 		return
 
 	# process reads in fastq file
@@ -71,7 +71,8 @@ def count_spacers(input_file, fastq_file, output_file, guide_g):
 		key_index = key_region.find(KEY)
 		if key_index >= 0:
 			start_index = key_index + KEY_REGION_START + len(KEY)
-			guide = read_sequence[start_index:(start_index + 20)]
+			guide = read_sequence[start_index:(start_index + 22)]
+			print(guide)
 			if guide in dictionary:
 				dictionary[guide] += 1
 				perfect_matches += 1

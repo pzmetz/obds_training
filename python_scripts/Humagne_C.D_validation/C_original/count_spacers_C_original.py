@@ -44,6 +44,11 @@ def count_spacers(input_file, fastq_file, output_file, guide_g):
     non_perfect_matches = 0  # number of guides without a perfect match to the library
     key_not_found = 0  # count of reads where key was not found
 
+	# add 'G' to key sequence if included in library
+	if guide_g:
+		global KEY
+		KEY += "G"
+
     # open library sequences and initiate dictionary of read counts for each guide
     try:
         with open(input_file, mode='rU') as infile:  # rU mode is necessary for excel!
@@ -69,7 +74,7 @@ def count_spacers(input_file, fastq_file, output_file, guide_g):
         key_index = read_sequence.find(KEY)
         if key_index >= 0:
             start_index = key_index + KEY_REGION_START + len(KEY)
-            guide = read_sequence[start_index:(start_index + 23)]
+            guide = read_sequence[start_index:(start_index + 22)]
             print(guide)
             if guide in dictionary:
                 dictionary[guide] += 1
@@ -102,13 +107,11 @@ def count_spacers(input_file, fastq_file, output_file, guide_g):
             mywriter.writerow([guide, count])
 
     # percentage of guides that matched perfectly
-    percent_matched = round(
-        perfect_matches/float(perfect_matches + non_perfect_matches) * 100, 1)
+    percent_matched = round(perfect_matches/float(perfect_matches + non_perfect_matches) * 100, 1)
     # percentage of undetected guides with no read counts
     guides_with_reads = np.count_nonzero(dictionary.values())
     guides_no_reads = len(dictionary.values()) - guides_with_reads
-    percent_no_reads = round(
-        guides_no_reads/float(len(dictionary.values())) * 100, 1)
+    percent_no_reads = round(guides_no_reads/float(len(dictionary.values())) * 100, 1)
     # skew ratio of top 10% to bottom 10% of guide counts
     top_10 = np.percentile(dictionary.values(), 90)
     bottom_10 = np.percentile(dictionary.values(), 10)
@@ -119,17 +122,12 @@ def count_spacers(input_file, fastq_file, output_file, guide_g):
 
     # write analysis statistics to statistics.txt
     with open('statistics.txt', 'w') as infile:
-        infile.write('Number of perfect guide matches: ' +
-                     str(perfect_matches) + '\n')
-        infile.write('Number of nonperfect guide matches: ' +
-                     str(non_perfect_matches) + '\n')
-        infile.write('Number of reads where key was not found: ' +
-                     str(key_not_found) + '\n')
+        infile.write('Number of perfect guide matches: ' + str(perfect_matches) + '\n')
+        infile.write('Number of nonperfect guide matches: ' + str(non_perfect_matches) + '\n')
+        infile.write('Number of reads where key was not found: ' + str(key_not_found) + '\n')
         infile.write('Number of reads processed: ' + str(num_reads) + '\n')
-        infile.write('Percentage of guides that matched perfectly: ' +
-                     str(percent_matched) + '\n')
-        infile.write('Percentage of undetected guides: ' +
-                     str(percent_no_reads) + '\n')
+        infile.write('Percentage of guides that matched perfectly: ' + str(percent_matched) + '\n')
+        infile.write('Percentage of undetected guides: ' + str(percent_no_reads) + '\n')
         infile.write('Skew ratio of top 10% to bottom 10%: ' + str(skew_ratio))
         infile.close()
 
@@ -146,10 +144,8 @@ if __name__ == '__main__':
                         help='output file name', default='library_count.csv')
     parser.add_argument('-i', '--input', type=str, dest='input_file',
                         help='input file name', default='library_sequences.csv')
-    parser.add_argument('-no-g', dest='guide_g',
-                        help='presence of guanine before spacer', action='store_false')
+    parser.add_argument('-no-g', dest='guide_g', help='presence of guanine before spacer', action='store_false')
     parser.set_defaults(guide_g=True)
     args = parser.parse_args()
 
-    count_spacers(args.input_file, args.fastq_file,
-                  args.output_file, args.guide_g)
+    count_spacers(args.input_file, args.fastq_file, args.output_file, args.guide_g)
