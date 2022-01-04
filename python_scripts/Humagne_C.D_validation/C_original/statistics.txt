@@ -1,4 +1,4 @@
-Number of perfect guide matches: 3251556
+0.1Number of perfect guide matches: 3251556
 Number of nonperfect guide matches: 353125
 Number of reads where key was not found: 431420
 Number of reads processed: 4036101
